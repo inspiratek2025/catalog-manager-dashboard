@@ -41,8 +41,8 @@ def get_db_connection():
 @st.cache_data(ttl=CFG["refresh_interval_seconds"])
 def query_db(sql: str, params: tuple = None) -> pd.DataFrame:
     """Execute query and return DataFrame. Cached for 5 minutes."""
-    import psycopg2
-    conn = psycopg2.connect(get_db_connection())
+    import psycopg
+    conn = psycopg.connect(get_db_connection())
     try:
         df = pd.read_sql(sql, conn, params=params)
         return df
@@ -55,8 +55,8 @@ def query_db(sql: str, params: tuple = None) -> pd.DataFrame:
 def is_demo_mode():
     """Check if we should use demo data (no DB connection)."""
     try:
-        import psycopg2
-        conn = psycopg2.connect(get_db_connection())
+        import psycopg
+        conn = psycopg.connect(get_db_connection())
         conn.close()
         return False
     except:
