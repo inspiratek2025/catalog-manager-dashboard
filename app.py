@@ -12,6 +12,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, date, timedelta
+from sqlalchemy import create_engine, text as sql_text
 
 # CONFIG (replaces config.settings for Streamlit Cloud)
 CFG = {
@@ -33,21 +34,17 @@ st.set_page_config(
 # DATABASE CONNECTION (cached)
 # ============================================================================
 @st.cache_resource
-def get_db_connection():
-    """Get database connection string from Streamlit secrets."""
+def get_db_engine():
+    """Get database engine from Streamlit secrets."""
     db = st.secrets["database"]
-    return f"postgresql://{db['user']}:{db['password']}@{db['host']}:{db['port']}/{db['dbname']}"
+    url = f"postgresql+pg8000://{db['user']}:{db['password']}@{db['host']}:{db['port']}/{db['dbname']}"
+    return create_engine(url)
 
 @st.cache_data(ttl=CFG["refresh_interval_seconds"])
 def query_db(sql: str, params: tuple = None) -> pd.DataFrame:
     """Execute query and return DataFrame. Cached for 5 minutes."""
-    import psycopg
-    conn = psycopg.connect(get_db_connection())
-    try:
-        df = pd.read_sql(sql, conn, params=params)
-        return df
-    finally:
-        conn.close()
+    engine = get_db_engine()
+    return pd.read_sql(sql, engine, params=params)
 
 # ============================================================================
 # DEMO MODE (when no DB connected)
@@ -55,9 +52,9 @@ def query_db(sql: str, params: tuple = None) -> pd.DataFrame:
 def is_demo_mode():
     """Check if we should use demo data (no DB connection)."""
     try:
-        import psycopg
-        conn = psycopg.connect(get_db_connection())
-        conn.close()
+        engine = get_db_engine()
+        with engine.connect() as conn:
+            conn.execute(sql_text("SELECT 1"))
         return False
     except:
         return True
